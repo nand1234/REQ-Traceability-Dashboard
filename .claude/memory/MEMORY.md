@@ -1,0 +1,4 @@
+- [RTM shared Artifact](reference_rtm_artifact.md) — one per feature under features/<name>/ARTIFACT.md, titled after that feature, not hardcoded
+- [rtm-import skill may live in two places](reference_rtm_import_skill_location.md) — project .claude/skills (local trigger) plus an optional second copy, sync by hand
+- [RTM dashboard Read-only / Edit switch + GIVEN/WHEN/THEN lines](project_rtm_dashboard_edit_mode.md) — in the dashboard files and the rtm-import templates (new features inherit; older ones not synced); live comments are not in local files
+- [Jira AC workflow](project_jira_ac_workflow.md) — draft-before-write rule, AC format (GIVEN/WHEN/THEN lines + Required Tests), rtm-jira-ac skill location

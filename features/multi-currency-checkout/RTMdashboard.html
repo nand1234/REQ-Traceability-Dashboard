@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirement Traceability Dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --border:         rgba(11,11,11,0.10);
+    --border-strong:  #c3c2b7;
+
+    --good:     #0ca30c;
+    --warning:  #fab219;
+    --serious:  #ec835a;
+    --critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --border:         rgba(255,255,255,0.10);
+      --border-strong:  #383835;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page-plane:     #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --border:         rgba(255,255,255,0.10);
+    --border-strong:  #383835;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body {
+    margin: 0;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  body { padding: 32px 20px 80px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  /* ---------- two-column layout ---------- */
+  .columns { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; }
+  .col-main { min-width: 0; }
+  .col-side { min-width: 0; }
+  @media (max-width: 900px) {
+    .columns { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- header ---------- */
+  header.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .meta-chip {
+    font-size: 12px; color: var(--text-secondary);
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 10px;
+  }
+  .meta-chip b { color: var(--text-primary); font-weight: 600; }
+
+  .toolbar { display: flex; gap: 8px; flex-shrink: 0; }
+  .btn {
+    font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border-strong); border-radius: 8px;
+    padding: 7px 12px; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--text-secondary); }
+  .btn-icon { width: 34px; padding: 7px 0; text-align: center; }
+
+  /* ---------- read-only / edit switch ---------- */
+  .mode-switch { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+  .mode-switch button {
+    font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--surface-1); color: var(--text-secondary);
+    border: none; padding: 7px 12px; white-space: nowrap;
+  }
+  .mode-switch button + button { border-left: 1px solid var(--border-strong); }
+  .mode-switch button:hover { color: var(--text-primary); }
+  .mode-switch button[aria-pressed="true"] { background: var(--text-primary); color: var(--surface-1); }
+
+  .btn-mini {
+    font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+    background: transparent; color: var(--text-secondary);
+    border: 1px dashed var(--border-strong); border-radius: 7px;
+    padding: 5px 10px; white-space: nowrap;
+  }
+  .btn-mini:hover { color: var(--text-primary); border-color: var(--text-secondary); border-style: solid; }
+  .btn-mini:disabled { opacity: 0.5; cursor: default; }
+
+  /* ---------- shared inline "add" forms ---------- */
+  .inline-add { margin-top: 4px; }
+  .inline-add-form {
+    margin-top: 10px; background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .inline-add-form textarea, .inline-add-form input[type="text"], .inline-add-form select {
+    font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: var(--page-plane); color: var(--text-primary);
+    resize: vertical; width: 100%;
+  }
+  .inline-add-form textarea:focus, .inline-add-form input[type="text"]:focus, .inline-add-form select:focus { outline: none; border-color: var(--text-secondary); }
+  .inline-add-row { display: flex; gap: 8px; }
+  .inline-add-row select { flex: 0 0 130px; }
+  .inline-add-actions { display: flex; gap: 8px; }
+  .inline-add-error { font-size: 12px; color: var(--critical); min-height: 14px; }
+
+  /* ---------- stat row ---------- */
+  .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin: 20px 0 32px;
+  }
+  .stat-tile {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 6px; }
+  .stat-value { font-size: 28px; font-weight: 700; line-height: 1; font-variant-numeric: proportional-nums; }
+  .stat-value.warn { color: var(--warning); }
+  .stat-sub { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+
+  .segbar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; margin-top: 10px; background: var(--gridline); }
+  .segbar > span { display: block; height: 100%; }
+  .seg-good { background: var(--good); }
+  .seg-critical { background: var(--critical); }
+  .seg-warning { background: var(--warning); }
+  .seg-serious { background: var(--serious); }
+  .seg-neutral { background: var(--border-strong); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-size: 11px; color: var(--text-secondary); }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ---------- section heading ---------- */
+  .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 28px 0 10px; }
+
+  /* ---------- requirement cards ---------- */
+  details.req {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 10px; overflow: hidden;
+  }
+  details.req[open] { border-color: var(--border-strong); }
+  summary.req-summary {
+    list-style: none; cursor: pointer; padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  summary.req-summary::-webkit-details-marker { display: none; }
+  .chev { flex-shrink: 0; width: 16px; height: 16px; color: var(--text-muted); transition: transform 0.15s ease; }
+  details[open] .chev { transform: rotate(90deg); }
+
+  .req-id { font-weight: 700; font-size: 13px; color: var(--text-secondary); flex-shrink: 0; }
+  .req-title { font-weight: 600; font-size: 14px; flex: 1; min-width: 0; }
+  .req-summary-meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .req-progress { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+  .req-mini-bar { width: 60px; }
+
+  .req-body { padding: 0 16px 18px 44px; }
+  .req-meta-line { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .req-desc { font-size: 13.5px; line-height: 1.55; color: var(--text-primary); }
+  .req-desc p { margin: 0 0 10px; }
+  .req-desc p:last-child { margin-bottom: 0; }
+  .req-desc code { background: var(--gridline); border-radius: 4px; padding: 1px 5px; font-size: 0.9em; }
+
+  .tc-heading { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 16px 0 8px; }
+
+  .tc-row {
+    display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--gridline);
+    align-items: flex-start;
+  }
+  .tc-row:first-of-type { border-top: none; }
+  .tc-id { font-size: 12px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; width: 66px; padding-top: 2px; }
+  .tc-body { flex: 1; min-width: 0; }
+  .tc-title { font-size: 13px; font-weight: 500; }
+  .tc-desc { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; line-height: 1.45; }
+  .scenario-kw { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; color: var(--text-primary); }
+  .scenario-meta { margin-top: 4px; font-size: 11.5px; color: var(--text-muted); }
+
+  .tc-ticket { display: flex; align-items: center; gap: 7px; flex-shrink: 0; padding-top: 1px; }
+  .ticket-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
+  .ticket-dot.covered { background: var(--good); }
+  .ticket-input {
+    font: inherit; font-size: 12px; font-weight: 600; width: 108px;
+    padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border-strong);
+    background: var(--page-plane); color: var(--text-primary);
+  }
+  .ticket-input:focus { outline: none; border-color: var(--text-secondary); }
+  .ticket-input::placeholder { color: var(--text-muted); font-weight: 400; }
+  .ticket-input[readonly] { background: transparent; border-color: transparent; cursor: default; }
+  .ticket-status { font-size: 11px; color: var(--text-muted); white-space: nowrap; min-width: 44px; }
+  .ticket-status.saved { color: var(--good); }
+  .ticket-status.error { color: var(--critical); cursor: help; }
+
+  .tc-add { margin-top: 10px; }
+  .tc-add-form {
+    margin-top: 8px; background: var(--page-plane); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .tc-add-form input, .tc-add-form textarea {
+    font: inherit; font-size: 12.5px; padding: 6px 9px; border-radius: 6px;
+    border: 1px solid var(--border-strong); background: var(--surface-1); color: var(--text-primary);
+    resize: vertical; width: 100%;
+  }
+  .tc-add-form input:focus, .tc-add-form textarea:focus { outline: none; border-color: var(--text-secondary); }
+  .tc-add-actions { display: flex; gap: 8px; }
+  .tc-add-error { font-size: 11.5px; color: var(--critical); min-height: 14px; }
+
+  /* ---------- badges ---------- */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600; border-radius: 999px; padding: 3px 9px 3px 7px;
+    flex-shrink: 0; white-space: nowrap;
+  }
+  .badge-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .badge-good     { color: var(--good);     background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .badge-good .badge-dot     { background: var(--good); }
+  .badge-critical { color: var(--critical); background: color-mix(in srgb, var(--critical) 14%, transparent); }
+  .badge-critical .badge-dot { background: var(--critical); }
+  .badge-warning  { color: var(--warning);  background: color-mix(in srgb, var(--warning) 18%, transparent); }
+  .badge-warning .badge-dot  { background: var(--warning); }
+  .badge-serious  { color: var(--serious);  background: color-mix(in srgb, var(--serious) 16%, transparent); }
+  .badge-serious .badge-dot  { background: var(--serious); }
+  .badge-neutral  { color: var(--text-secondary); background: var(--gridline); }
+  .badge-neutral .badge-dot  { background: var(--text-muted); }
+  .badge-scope    { color: var(--text-muted);     background: var(--gridline); }
+  .badge-scope .badge-dot    { background: var(--text-muted); }
+
+  /* ---------- out-of-scope marking ---------- */
+  details.req.out-of-scope { opacity: 0.6; }
+  details.req.out-of-scope:hover, details.req.out-of-scope[open] { opacity: 0.85; }
+  .tc-row.out-of-scope { opacity: 0.55; }
+  .tc-row.out-of-scope:hover { opacity: 0.85; }
+  .oq-row.out-of-scope { opacity: 0.6; }
+  .oq-row.out-of-scope:hover { opacity: 0.85; }
+  .tc-heading-oos { text-transform: none; font-weight: 500; letter-spacing: normal; color: var(--text-muted); }
+  .tc-ticket .scope-toggle { margin-left: 4px; }
+  .oq-scope-toggle {
+    font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 3px 10px; white-space: nowrap; flex-shrink: 0;
+  }
+  .oq-scope-toggle:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+  .oq-scope-toggle:disabled { opacity: 0.5; cursor: default; }
+
+  /* ---------- comments ---------- */
+  .comment-block { margin-top: 8px; }
+  .comment-toggle {
+    font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+    background: transparent; color: var(--text-secondary); border: none;
+    padding: 0; text-decoration: underline; text-underline-offset: 2px;
+  }
+  .comment-toggle:hover { color: var(--text-primary); }
+  .comment-view {
+    display: flex; align-items: flex-start; gap: 8px;
+    background: var(--page-plane); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px;
+  }
+  .comment-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); flex-shrink: 0; padding-top: 1px; }
+  .comment-text { font-size: 12.5px; line-height: 1.5; color: var(--text-primary); flex: 1; min-width: 0; white-space: pre-wrap; }
+  .comment-form {
+    background: var(--page-plane); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .comment-textarea {
+    font: inherit; font-size: 12.5px; padding: 6px 9px; border-radius: 6px;
+    border: 1px solid var(--border-strong); background: var(--surface-1); color: var(--text-primary);
+    resize: vertical; width: 100%;
+  }
+  .comment-textarea:focus { outline: none; border-color: var(--text-secondary); }
+  .comment-actions { display: flex; gap: 8px; }
+  .comment-error { font-size: 11.5px; color: var(--critical); min-height: 14px; }
+
+  .priority { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; border-radius: 999px; padding: 3px 9px; flex-shrink: 0; }
+  .priority-high   { background: var(--text-primary); color: var(--surface-1); }
+  .priority-medium { border: 1px solid var(--border-strong); color: var(--text-secondary); }
+  .priority-low    { color: var(--text-muted); }
+
+  /* ---------- open questions ---------- */
+  .oq-row {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 8px;
+  }
+  .oq-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+  .oq-id { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+  .oq-text { font-size: 13.5px; line-height: 1.5; margin: 0 0 8px; }
+  .oq-related { display: flex; flex-wrap: wrap; gap: 6px; }
+  .oq-link {
+    font-size: 11px; font-weight: 600; color: var(--text-secondary);
+    background: var(--gridline); border-radius: 999px; padding: 2px 9px;
+    cursor: pointer; border: none; font-family: inherit;
+  }
+  .oq-link:hover { color: var(--text-primary); }
+
+  .oq-bottom { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 10px; margin-top: 8px; }
+  .oq-answered { opacity: 0.72; }
+  .oq-toggle {
+    font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 3px 10px; white-space: nowrap; flex-shrink: 0; margin-left: auto;
+  }
+  .oq-toggle:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+  .oq-toggle:disabled { opacity: 0.5; cursor: default; }
+  .oq-toggle-status { font-size: 11px; color: var(--text-muted); margin-left: 8px; }
+  .oq-toggle-status.error { color: var(--critical); cursor: help; }
+
+  /* ---------- read-only mode hides every write control ---------- */
+  :root[data-mode="read"] .tc-add,
+  :root[data-mode="read"] .inline-add,
+  :root[data-mode="read"] .scope-toggle,
+  :root[data-mode="read"] .oq-toggle,
+  :root[data-mode="read"] .oq-toggle-status,
+  :root[data-mode="read"] .comment-block[data-has="0"] { display: none; }
+
+  .empty { color: var(--text-muted); font-size: 13px; padding: 16px 0; }
+
+  .error-panel {
+    background: var(--surface-1); border: 1px solid var(--critical); border-radius: 12px;
+    padding: 18px 20px; font-size: 13.5px; line-height: 1.6; color: var(--text-primary);
+  }
+  .error-panel code {
+    display: block; background: var(--gridline); border-radius: 6px; padding: 8px 10px;
+    margin: 8px 0; font-size: 12.5px; overflow-x: auto; white-space: pre;
+  }
+
+  footer.note { margin-top: 40px; font-size: 11.5px; color: var(--text-muted); text-align: center; }
+
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: 1fr; }
+    .req-body { padding-left: 16px; }
+    header.top { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1 id="doc-title">Requirement Traceability Dashboard</h1>
+      <div class="meta-row" id="doc-meta"></div>
+    </div>
+    <div class="toolbar">
+      <div class="mode-switch" role="group" aria-label="Mode">
+        <button type="button" id="mode-read" aria-pressed="true">Read-only</button>
+        <button type="button" id="mode-edit" aria-pressed="false">Edit</button>
+      </div>
+      <button class="btn" id="expand-all">Expand all</button>
+      <button class="btn" id="collapse-all">Collapse all</button>
+      <button class="btn btn-icon" id="theme-toggle" title="Toggle theme">◐</button>
+    </div>
+  </header>
+
+  <div id="app">Loading requirement.md…</div>
+
+  <footer class="note">Reading from <code>requirement.md</code> — ticket numbers and open questions save back to the file automatically. Edit the file directly for a new CP, then refresh.</footer>
+</div>
+
+<script>
+(function () {
+  const CHEV = '<svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  const STATUS_ROLE = {
+    answered: 'good',
+    open: 'warning'
+  };
+
+  function normStatus(s) {
+    return (s || '').toLowerCase().replace(/[^a-z]/g, '');
+  }
+  function statusRole(s) {
+    return STATUS_ROLE[normStatus(s)] || 'neutral';
+  }
+  function escapeHtml(s) {
+    return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function mdInline(s) {
+    let out = escapeHtml(s);
+    out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+    out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    return out;
+  }
+  function badge(status) {
+    const role = statusRole(status);
+    return `<span class="badge badge-${role}"><span class="badge-dot"></span>${escapeHtml(status)}</span>`;
+  }
+  function priorityChip(p) {
+    const key = normStatus(p);
+    if (!key) return '';
+    const cls = key === 'high' ? 'priority-high' : key === 'medium' ? 'priority-medium' : 'priority-low';
+    return `<span class="priority ${cls}">${escapeHtml(p)}</span>`;
+  }
+
+  // ---------------- parser ----------------
+  function parseMetaLine(line) {
+    const out = {};
+    line.split('|').forEach(part => {
+      const idx = part.indexOf(':');
+      if (idx === -1) return;
+      const key = part.slice(0, idx).trim();
+      const val = part.slice(idx + 1).trim();
+      if (key) out[key] = val;
+    });
+    return out;
+  }
+
+  function parseRTM(raw) {
+    const text = raw.replace(/<!--[\s\S]*?-->/g, '');
+    const lines = text.split('\n');
+
+    const doc = { title: '', meta: {}, requirements: [], openQuestions: [] };
+    let mode = 'top'; // top | req-body | req-tc | oq
+    let curReq = null;
+    let curTC = null;
+
+    const reH1 = /^#\s+(.+)$/;
+    const reMeta = /^>\s*(.+)$/;
+    const reOQSection = /^##\s+Open Questions\s*$/i;
+    const reReqSection = /^##\s+(?!Open Questions).+$/i;
+    const reReqHeader = /^###\s+(REQ-[\w.-]+)\s*:\s*(.+)$/i;
+    const reTCMarker = /^####\s+Test Cases\s*$/i;
+    const reTCLine = /^-\s+(TC-[\w.-]+)\s*:\s*(.*?)\s*[-–—]\s*Ticket:\s*(.*?)\s*(?:[-–—]\s*Scope:\s*(.*?)\s*)?$/i;
+    const reOQLine = /^-\s+(OQ-[\w.-]+)\s*(?:\(Related:\s*([^)]*)\))?\s*:\s*(.*?)\s*[-–—]\s*Status:\s*([A-Za-z][A-Za-z ]*?)\s*(?:[-–—]\s*Scope:\s*(.*?)\s*)?$/i;
+    const reIndented = /^\s{2,}\S/;
+    const reCommentLine = /^Comment:\s*(.*)$/i;
+
+    function isOutOfScope(v) { return normStatus(v) === 'outofscope'; }
+
+    function pushReq() {
+      if (curReq) {
+        curReq.description = curReq.descLines.join('\n').trim();
+        delete curReq.descLines;
+        delete curReq._metaSeen;
+        doc.requirements.push(curReq);
+      }
+      curReq = null;
+      curTC = null;
+    }
+
+    for (const rawLine of lines) {
+      const line = rawLine.replace(/\s+$/, '');
+
+      if (!doc.title) {
+        const m = line.match(reH1);
+        if (m) { doc.title = m[1].trim(); continue; }
+      }
+
+      if (mode === 'top' && doc.title && !doc.requirements.length && !curReq && reMeta.test(line) && !Object.keys(doc.meta).length) {
+        doc.meta = parseMetaLine(line.match(reMeta)[1]);
+        continue;
+      }
+
+      if (reOQSection.test(line)) { pushReq(); mode = 'oq'; continue; }
+
+      const reqMatch = line.match(reReqHeader);
+      if (reqMatch) {
+        pushReq();
+        curReq = { id: reqMatch[1].toUpperCase(), title: reqMatch[2].trim(), priority: '', status: '', outOfScope: false, comment: '', descLines: [], testCases: [], _metaSeen: false };
+        mode = 'req-body';
+        continue;
+      }
+
+      if (mode === 'oq') {
+        const oqMatch = line.match(reOQLine);
+        if (oqMatch) {
+          const related = (oqMatch[2] || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+          doc.openQuestions.push({ id: oqMatch[1].toUpperCase(), related, text: oqMatch[3].trim(), status: oqMatch[4].trim(), outOfScope: isOutOfScope(oqMatch[5]), comment: '' });
+          continue;
+        }
+        if (reIndented.test(line) && doc.openQuestions.length) {
+          const cMatch = line.trim().match(reCommentLine);
+          if (cMatch) doc.openQuestions[doc.openQuestions.length - 1].comment = cMatch[1].trim();
+        }
+        continue;
+      }
+
+      if (mode === 'req-body' || mode === 'req-tc') {
+        if (!curReq) continue;
+
+        const metaMatch = line.match(reMeta);
+        if (metaMatch && !curReq.descLines.length && !curReq.testCases.length) {
+          const raw = metaMatch[1].trim();
+          const cMatch = raw.match(reCommentLine);
+          if (cMatch) { curReq.comment = cMatch[1].trim(); continue; }
+          if (!curReq._metaSeen) {
+            const m = parseMetaLine(raw);
+            curReq.priority = m['Priority'] || '';
+            curReq.status = m['Status'] || '';
+            curReq.outOfScope = isOutOfScope(m['Scope']);
+            curReq._metaSeen = true;
+            continue;
+          }
+        }
+
+        if (reTCMarker.test(line)) { mode = 'req-tc'; continue; }
+
+        if (mode === 'req-tc') {
+          const tcMatch = line.match(reTCLine);
+          if (tcMatch) {
+            curTC = { id: tcMatch[1].toUpperCase(), title: tcMatch[2].trim(), ticket: tcMatch[3].trim(), outOfScope: isOutOfScope(tcMatch[4]), description: '', comment: '' };
+            curReq.testCases.push(curTC);
+            continue;
+          }
+          if (curTC && reIndented.test(line)) {
+            const trimmed = line.trim();
+            const cMatch = trimmed.match(reCommentLine);
+            if (cMatch) { curTC.comment = cMatch[1].trim(); continue; }
+            curTC.description = (curTC.description ? curTC.description + ' ' : '') + trimmed;
+            continue;
+          }
+          continue;
+        }
+
+        if (reReqSection.test(line)) { mode = 'top'; continue; }
+        curReq.descLines.push(line);
+        continue;
+      }
+    }
+    pushReq();
+    return doc;
+  }
+
+  // ---------------- render ----------------
+  function renderDescription(text) {
+    if (!text) return '';
+    return text.split(/\n\s*\n/).map(p => `<p>${mdInline(p.trim()).replace(/\n/g, '<br>')}</p>`).join('');
+  }
+
+  // ---------------- scenarios ----------------
+  const SCENARIO_KEYWORD = /(?:^|[.!?]\s+|\n\s*)(Given|When|Then|And|But)\b/g;
+
+  // Sentences ("Given A. When B. Then C.") or one line ("Given A, when B, then C") -> [[Keyword, text], …]; null for anything else
+  function scenarioSteps(t) {
+    const marks = [];
+    SCENARIO_KEYWORD.lastIndex = 0;
+    for (let m; (m = SCENARIO_KEYWORD.exec(t));) marks.push({ kw: m[1], at: m.index + m[0].length - m[1].length });
+    const order = marks.map(x => x.kw);
+    if (order[0] === 'Given' && marks[0].at === 0 && order.indexOf('When') > 0 && order.indexOf('Then') > order.indexOf('When')) {
+      return marks.map((x, i) => [x.kw, t.slice(x.at + x.kw.length, i + 1 < marks.length ? marks[i + 1].at : t.length).trim()]);
+    }
+    const line = t.match(/^given\b([\s\S]*?)[,;]\s+when\b([\s\S]*?)[,;]\s+then\b([\s\S]*)$/i);
+    return line ? [['Given', line[1].trim()], ['When', line[2].trim()], ['Then', line[3].trim()]] : null;
+  }
+
+  // "Given … When … Then … Planned layer: …" -> { steps: [[Keyword, text], …], meta }; null for any other text
+  function parseScenario(text) {
+    const steps = scenarioSteps((text || '').trim());
+    if (!steps) return null;
+    const thenAt = steps.findIndex(s => s[0] === 'Then');
+    let meta = '';
+    const last = steps[steps.length - 1];
+    const cut = last[1].search(/\s*Planned layer:/);
+    if (cut >= 0) { meta = last[1].slice(cut).trim(); last[1] = last[1].slice(0, cut).trim(); }
+    steps.forEach((s, i) => { if (i < thenAt) s[1] = s[1].replace(/[.;,]+$/, ''); });
+    return { steps, meta };
+  }
+
+  // GIVEN, WHEN and THEN each on their own line; any other text stays a plain paragraph
+  function renderScenario(text) {
+    const scenario = parseScenario(text);
+    if (!scenario) return `<div class="tc-desc">${mdInline(text)}</div>`;
+    return `<div class="tc-desc">
+      ${scenario.steps.map(([kw, body]) => `<div><span class="scenario-kw">${kw.toUpperCase()}</span> ${mdInline(body)}</div>`).join('')}
+      ${scenario.meta ? `<div class="scenario-meta">${mdInline(scenario.meta)}</div>` : ''}
+    </div>`;
+  }
+
+  function coverageCounts(testCases) {
+    let covered = 0, uncovered = 0, outOfScope = 0;
+    testCases.forEach(tc => {
+      if (tc.outOfScope) { outOfScope++; return; }
+      tc.ticket ? covered++ : uncovered++;
+    });
+    return { covered, uncovered, outOfScope };
+  }
+
+  function coverageBar(counts, total) {
+    if (!total) return '';
+    const parts = [];
+    if (counts.covered) parts.push(`<span class="seg-good" style="flex:${counts.covered}"></span>`);
+    if (counts.uncovered) parts.push(`<span class="seg-neutral" style="flex:${counts.uncovered}"></span>`);
+    return '<div class="segbar">' + parts.join('') + '</div>';
+  }
+
+  function scopeBadge() {
+    return '<span class="badge badge-scope"><span class="badge-dot"></span>Out of scope</span>';
+  }
+
+  function scopeToggleBtn(type, id, outOfScope, cls) {
+    return `<button class="${cls}" data-scope-type="${type}" data-scope-id="${id}" data-scope-next="${outOfScope ? 'in' : 'out'}" type="button">${outOfScope ? 'Restore' : 'Mark out of scope'}</button>`;
+  }
+
+  function renderCommentBlock(type, id, comment) {
+    const has = !!comment;
+    return `
+      <div class="comment-block" data-comment-type="${type}" data-comment-id="${id}" data-state="collapsed" data-has="${has ? '1' : '0'}">
+        <button class="comment-toggle" type="button">${has ? 'View comment' : '+ Add comment'}</button>
+        <div class="comment-view" hidden>
+          <div class="comment-label">Comment</div>
+          <div class="comment-text">${mdInline(comment)}</div>
+        </div>
+        <div class="comment-form" hidden>
+          <textarea class="comment-textarea" rows="2" placeholder="Add a note… (clear it and Save to delete)">${escapeHtml(comment)}</textarea>
+          <div class="comment-actions">
+            <button class="btn-mini comment-save" type="button">Save</button>
+            <button class="btn-mini comment-cancel" type="button">Cancel</button>
+          </div>
+          <div class="comment-error"></div>
+        </div>
+      </div>`;
+  }
+
+  function renderStats(doc) {
+    const allTC = doc.requirements.flatMap(r => r.testCases);
+    const counts = coverageCounts(allTC);
+    const inScopeTotal = counts.covered + counts.uncovered;
+    const openQ = doc.openQuestions.filter(q => !q.outOfScope && normStatus(q.status) !== 'answered').length;
+    const reqOOS = doc.requirements.filter(r => r.outOfScope).length;
+    const oqOOS = doc.openQuestions.filter(q => q.outOfScope).length;
+
+    return `
+      <div class="stats">
+        <div class="stat-tile">
+          <div class="stat-label">Requirements</div>
+          <div class="stat-value">${doc.requirements.length}</div>
+          ${reqOOS ? `<div class="stat-sub">${reqOOS} out of scope</div>` : ''}
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Test Cases</div>
+          <div class="stat-value">${inScopeTotal}</div>
+          ${coverageBar(counts, inScopeTotal)}
+          <div class="legend">
+            ${counts.covered ? `<span class="legend-item"><span class="legend-dot" style="background:var(--good)"></span>Covered ${counts.covered}</span>` : ''}
+            ${counts.uncovered ? `<span class="legend-item"><span class="legend-dot" style="background:var(--border-strong)"></span>No ticket ${counts.uncovered}</span>` : ''}
+            ${counts.outOfScope ? `<span class="legend-item"><span class="legend-dot" style="background:var(--text-muted)"></span>Out of scope ${counts.outOfScope}</span>` : ''}
+          </div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Open Questions</div>
+          <div class="stat-value ${openQ > 0 ? 'warn' : ''}">${openQ}</div>
+          <div class="stat-sub">${doc.openQuestions.length} total logged${oqOOS ? ` · ${oqOOS} out of scope` : ''}</div>
+        </div>
+      </div>`;
+  }
+
+  function renderTcEditForm(tc) {
+    return `
+      <div class="tc-add-form tc-edit-form" hidden>
+        <input type="text" class="tc-edit-title" value="${escapeHtml(tc.title)}" placeholder="Test case title">
+        <textarea class="tc-edit-desc" rows="2" placeholder="Description (optional)">${escapeHtml(tc.description)}</textarea>
+        <div class="tc-add-actions">
+          <button class="btn-mini tc-edit-save" type="button">Save</button>
+          <button class="btn-mini tc-edit-cancel" type="button">Cancel</button>
+        </div>
+        <div class="tc-add-error tc-edit-error"></div>
+      </div>`;
+  }
+
+  function renderTC(tc, reqId) {
+    return `
+      <div class="tc-row${tc.outOfScope ? ' out-of-scope' : ''}" data-tc="${tc.id}" data-req="${reqId}">
+        <div class="tc-id">${escapeHtml(tc.id)}</div>
+        <div class="tc-body">
+          <div class="tc-title">${escapeHtml(tc.title)}${tc.outOfScope ? ' ' + scopeBadge() : ''}</div>
+          ${tc.description ? renderScenario(tc.description) : ''}
+          ${renderCommentBlock('tc', tc.id, tc.comment)}
+          ${renderTcEditForm(tc)}
+        </div>
+        <div class="tc-ticket">
+          <span class="ticket-dot ${tc.ticket ? 'covered' : ''}"></span>
+          <input type="text" class="ticket-input" value="${escapeHtml(tc.ticket)}" placeholder="Ticket #" spellcheck="false" autocomplete="off">
+          <span class="ticket-status"></span>
+          ${scopeToggleBtn('tc', tc.id, tc.outOfScope, 'btn-mini scope-toggle')}
+        </div>
+      </div>`;
+  }
+
+  function renderReqEditForm(req) {
+    return `
+      <div class="inline-add-form req-edit-form" hidden>
+        <input type="text" class="req-edit-title" value="${escapeHtml(req.title)}" placeholder="Requirement title">
+        <div class="inline-add-row">
+          <select class="req-edit-priority">
+            <option value=""${req.priority ? '' : ' selected'}>Priority…</option>
+            <option value="High"${req.priority === 'High' ? ' selected' : ''}>High</option>
+            <option value="Medium"${req.priority === 'Medium' ? ' selected' : ''}>Medium</option>
+            <option value="Low"${req.priority === 'Low' ? ' selected' : ''}>Low</option>
+          </select>
+          <input type="text" class="req-edit-status" value="${escapeHtml(req.status)}" placeholder="Status (optional)">
+        </div>
+        <textarea class="req-edit-desc" rows="4" placeholder="Description (optional)">${escapeHtml(req.description)}</textarea>
+        <div class="inline-add-actions">
+          <button class="btn req-edit-save" type="button">Save</button>
+          <button class="btn req-edit-cancel" type="button">Cancel</button>
+        </div>
+        <div class="inline-add-error req-edit-error"></div>
+      </div>`;
+  }
+
+  function renderReq(req) {
+    const counts = coverageCounts(req.testCases);
+    const total = counts.covered + counts.uncovered;
+    return `
+      <details class="req${req.outOfScope ? ' out-of-scope' : ''}" id="${req.id}">
+        <summary class="req-summary">
+          ${CHEV}
+          <span class="req-id">${req.id}</span>
+          <span class="req-title">${escapeHtml(req.title)}</span>
+          <span class="req-summary-meta">
+            ${req.outOfScope ? scopeBadge() : ''}
+            ${req.priority ? priorityChip(req.priority) : ''}
+            <span class="req-progress" id="req-progress-${req.id}"${total ? '' : ' style="display:none"'}>${counts.covered}/${total} covered</span>
+            <span class="req-mini-bar" id="req-minibar-${req.id}"${total ? '' : ' style="display:none"'}>${coverageBar(counts, total)}</span>
+          </span>
+        </summary>
+        <div class="req-body">
+          <div class="req-meta-line">
+            ${req.priority ? priorityChip(req.priority) : ''}
+            ${req.status ? `<span class="meta-chip">Status: <b>${escapeHtml(req.status)}</b></span>` : ''}
+            ${scopeToggleBtn('req', req.id, req.outOfScope, 'btn-mini scope-toggle')}
+          </div>
+          <div class="req-desc">${renderDescription(req.description) || '<p class="empty">No description provided.</p>'}</div>
+          ${renderReqEditForm(req)}
+          ${renderCommentBlock('req', req.id, req.comment)}
+          <div class="tc-heading" id="tc-heading-${req.id}">Test Cases (${total})${counts.outOfScope ? ` <span class="tc-heading-oos">· ${counts.outOfScope} out of scope</span>` : ''}</div>
+          <div class="tc-list" id="tc-list-${req.id}">${req.testCases.map(tc => renderTC(tc, req.id)).join('')}</div>
+          ${renderTCAddBlock(req.id)}
+        </div>
+      </details>`;
+  }
+
+  function renderTCAddBlock(reqId) {
+    return `
+      <div class="tc-add">
+        <button class="btn-mini tc-add-toggle" data-req="${reqId}" type="button">+ Add test case</button>
+        <div class="tc-add-form" hidden>
+          <input type="text" class="tc-add-title" placeholder="Test case title">
+          <input type="text" class="tc-add-ticket" placeholder="Ticket # (optional)">
+          <textarea class="tc-add-desc" rows="2" placeholder="Description (optional)"></textarea>
+          <div class="tc-add-actions">
+            <button class="btn-mini tc-add-submit" type="button">Add</button>
+            <button class="btn-mini tc-add-cancel" type="button">Cancel</button>
+          </div>
+          <div class="tc-add-error"></div>
+        </div>
+      </div>`;
+  }
+
+  function renderOQ(q) {
+    const answered = normStatus(q.status) === 'answered';
+    return `
+      <div class="oq-row ${answered ? 'oq-answered' : ''}${q.outOfScope ? ' out-of-scope' : ''}" data-oq="${q.id}">
+        <div class="oq-top">
+          <span class="oq-id">${q.id}</span>
+          ${badge(q.status)}
+          ${q.outOfScope ? scopeBadge() : ''}
+        </div>
+        <p class="oq-text">${mdInline(q.text)}</p>
+        ${renderCommentBlock('oq', q.id, q.comment)}
+        <div class="oq-bottom">
+          ${q.related.length ? `<div class="oq-related">${q.related.map(r =>
+            `<button class="oq-link" data-jump="${r}">${r}</button>`
+          ).join('')}</div>` : '<span></span>'}
+          <button class="oq-toggle" data-oq="${q.id}" data-status="${answered ? 'Open' : 'Answered'}">
+            ${answered ? 'Reopen' : 'Mark answered'}
+          </button>
+          ${scopeToggleBtn('oq', q.id, q.outOfScope, 'oq-scope-toggle scope-toggle')}
+          <span class="oq-toggle-status"></span>
+        </div>
+      </div>`;
+  }
+
+  let currentDoc = null;
+
+  // ---------------- read-only / edit mode ----------------
+  let viewMode = 'read'; // read | edit
+  try { if (localStorage.getItem('rtm-mode') === 'edit') viewMode = 'edit'; } catch (e) { /* ignore */ }
+
+  // Opens every form in `scope` for editing (or closes them again). Call it after every (re)render.
+  function applyMode(scope) {
+    const edit = viewMode === 'edit';
+    document.documentElement.setAttribute('data-mode', edit ? 'edit' : 'read');
+    document.getElementById('mode-read').setAttribute('aria-pressed', String(!edit));
+    document.getElementById('mode-edit').setAttribute('aria-pressed', String(edit));
+    const root = scope || document;
+    root.querySelectorAll('.req-edit-form, .tc-edit-form').forEach(form => { form.hidden = !edit; });
+    root.querySelectorAll('.ticket-input').forEach(input => { input.readOnly = !edit; });
+    root.querySelectorAll('.comment-block').forEach(block => block._setMode(edit));
+  }
+
+  function setViewMode(mode) {
+    if (mode === viewMode || !currentDoc) return;
+    viewMode = mode;
+    try { localStorage.setItem('rtm-mode', mode); } catch (e) { /* ignore */ }
+    const openIds = Array.from(document.querySelectorAll('details.req[open]')).map(d => d.id);
+    render(currentDoc);
+    openIds.forEach(id => { const el = document.getElementById(id); if (el) el.open = true; });
+  }
+
+  // Back to the saved values (what the form was rendered with).
+  function resetFields(form) {
+    form.querySelectorAll('input, textarea').forEach(el => { el.value = el.defaultValue; });
+    form.querySelectorAll('select').forEach(sel => {
+      sel.selectedIndex = Math.max(0, Array.from(sel.options).findIndex(o => o.defaultSelected));
+    });
+  }
+
+  // Re-rendering a card or row would drop unsaved text in the other open forms: carry it over.
+  const DRAFT_FORMS = '.req-edit-form, .tc-edit-form, .comment-form';
+  function captureDrafts(el, exceptForm) {
+    return Array.from(el.querySelectorAll(DRAFT_FORMS)).map(form =>
+      form === exceptForm ? null : Array.from(form.querySelectorAll('input, textarea, select')).map(c => c.value));
+  }
+  function restoreDrafts(el, drafts) {
+    el.querySelectorAll(DRAFT_FORMS).forEach((form, i) => {
+      if (!drafts[i]) return;
+      form.querySelectorAll('input, textarea, select').forEach((c, j) => { c.value = drafts[i][j]; });
+    });
+  }
+
+  function queryAllIncludingSelf(container, selector) {
+    const results = Array.from(container.querySelectorAll(selector));
+    if (container.matches && container.matches(selector)) results.unshift(container);
+    return results;
+  }
+
+  function refreshReqCoverage(reqId) {
+    if (!currentDoc) return;
+    const req = currentDoc.requirements.find(r => r.id === reqId);
+    if (!req) return;
+
+    const statsWrap = document.getElementById('stats-wrap');
+    if (statsWrap) statsWrap.innerHTML = renderStats(currentDoc);
+
+    const counts = coverageCounts(req.testCases);
+    const total = counts.covered + counts.uncovered;
+    const progressEl = document.getElementById('req-progress-' + reqId);
+    const barEl = document.getElementById('req-minibar-' + reqId);
+    const headingEl = document.getElementById('tc-heading-' + reqId);
+    if (progressEl) { progressEl.textContent = `${counts.covered}/${total} covered`; progressEl.style.display = total ? '' : 'none'; }
+    if (barEl) { barEl.innerHTML = coverageBar(counts, total); barEl.style.display = total ? '' : 'none'; }
+    if (headingEl) headingEl.innerHTML = `Test Cases (${total})${counts.outOfScope ? ` <span class="tc-heading-oos">· ${counts.outOfScope} out of scope</span>` : ''}`;
+  }
+
+  function applyTicketToDoc(reqId, tcId, ticket) {
+    if (!currentDoc) return;
+    const req = currentDoc.requirements.find(r => r.id === reqId);
+    if (!req) return;
+    const tc = req.testCases.find(t => t.id === tcId);
+    if (tc) tc.ticket = ticket;
+    refreshReqCoverage(reqId);
+  }
+
+  function wireTicketInputs(app) {
+    queryAllIncludingSelf(app, '.tc-row').forEach(row => {
+      if (row.dataset.ticketWired) return;
+      row.dataset.ticketWired = '1';
+      const input = row.querySelector('.ticket-input');
+      const dot = row.querySelector('.ticket-dot');
+      const statusEl = row.querySelector('.ticket-status');
+      const tcId = row.dataset.tc;
+      const reqId = row.dataset.req;
+      let saved = input.value;
+
+      const commit = () => {
+        const value = input.value.trim();
+        if (value === saved) return;
+        statusEl.textContent = 'Saving…';
+        statusEl.removeAttribute('title');
+        statusEl.className = 'ticket-status saving';
+        fetch('/save-ticket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: tcId, ticket: value })
+        })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(() => {
+            saved = value;
+            input.value = value;
+            dot.classList.toggle('covered', !!value);
+            statusEl.textContent = 'Saved';
+            statusEl.className = 'ticket-status saved';
+            setTimeout(() => { statusEl.textContent = ''; statusEl.className = 'ticket-status'; }, 1500);
+            applyTicketToDoc(reqId, tcId, value);
+          })
+          .catch(() => {
+            statusEl.textContent = 'Save failed';
+            statusEl.title = 'Could not reach the write-server. Run: python3 serve.py';
+            statusEl.className = 'ticket-status error';
+          });
+      };
+
+      input.addEventListener('blur', commit);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      });
+    });
+  }
+
+  function wireTCAdd(container) {
+    container.querySelectorAll('.tc-add-toggle').forEach(btn => {
+      if (btn.dataset.wired) return;
+      btn.dataset.wired = '1';
+
+      const reqId = btn.dataset.req;
+      const form = btn.nextElementSibling;
+      const titleEl = form.querySelector('.tc-add-title');
+      const ticketEl = form.querySelector('.tc-add-ticket');
+      const descEl = form.querySelector('.tc-add-desc');
+      const errorEl = form.querySelector('.tc-add-error');
+      const submitBtn = form.querySelector('.tc-add-submit');
+      const cancelBtn = form.querySelector('.tc-add-cancel');
+
+      const closeForm = () => {
+        form.hidden = true;
+        titleEl.value = ''; ticketEl.value = ''; descEl.value = ''; errorEl.textContent = '';
+      };
+
+      btn.addEventListener('click', () => {
+        form.hidden = !form.hidden;
+        if (!form.hidden) titleEl.focus();
+      });
+      cancelBtn.addEventListener('click', closeForm);
+
+      submitBtn.addEventListener('click', () => {
+        const title = titleEl.value.trim();
+        if (!title) { errorEl.textContent = 'Test case title is required.'; return; }
+        errorEl.textContent = '';
+        submitBtn.disabled = true;
+        fetch('/add-testcase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reqId, title, ticket: ticketEl.value.trim(), description: descEl.value.trim() })
+        })
+          .then(r => r.json().then(body => ({ ok: r.ok, body })))
+          .then(({ ok, body }) => {
+            submitBtn.disabled = false;
+            if (!ok || !body.ok) { errorEl.textContent = body.error || 'Failed to add test case.'; return; }
+            const req = currentDoc.requirements.find(r => r.id === reqId);
+            const newTc = { id: body.id, title: body.title, ticket: body.ticket, outOfScope: false, description: body.description, comment: '' };
+            req.testCases.push(newTc);
+            const listEl = document.getElementById('tc-list-' + reqId);
+            const wrap = document.createElement('div');
+            wrap.innerHTML = renderTC(newTc, reqId);
+            const rowEl = wrap.firstElementChild;
+            listEl.appendChild(rowEl);
+            wireTicketInputs(rowEl);
+            wireScopeToggles(rowEl);
+            wireCommentBlocks(rowEl);
+            wireTcEdit(rowEl);
+            applyMode(rowEl);
+            refreshReqCoverage(reqId);
+            closeForm();
+          })
+          .catch(() => {
+            submitBtn.disabled = false;
+            errorEl.textContent = 'Could not reach the write-server. Run: python3 serve.py';
+          });
+      });
+    });
+  }
+
+  function wireReqAddForm() {
+    const toggleBtn = document.getElementById('req-add-toggle');
+    const form = document.getElementById('req-add-form');
+    if (!toggleBtn) return;
+    const titleEl = document.getElementById('req-add-title');
+    const priorityEl = document.getElementById('req-add-priority');
+    const statusEl = document.getElementById('req-add-status');
+    const descEl = document.getElementById('req-add-desc');
+    const submitBtn = document.getElementById('req-add-submit');
+    const cancelBtn = document.getElementById('req-add-cancel');
+    const errorEl = document.getElementById('req-add-error');
+
+    const closeForm = () => {
+      form.hidden = true;
+      titleEl.value = ''; priorityEl.value = ''; statusEl.value = ''; descEl.value = ''; errorEl.textContent = '';
+    };
+
+    toggleBtn.addEventListener('click', () => {
+      form.hidden = !form.hidden;
+      if (!form.hidden) titleEl.focus();
+    });
+    cancelBtn.addEventListener('click', closeForm);
+
+    submitBtn.addEventListener('click', () => {
+      const title = titleEl.value.trim();
+      if (!title) { errorEl.textContent = 'Requirement title is required.'; return; }
+      errorEl.textContent = '';
+      submitBtn.disabled = true;
+      fetch('/add-requirement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          priority: priorityEl.value,
+          status: statusEl.value.trim(),
+          description: descEl.value.trim()
+        })
+      })
+        .then(r => r.json().then(body => ({ ok: r.ok, body })))
+        .then(({ ok, body }) => {
+          submitBtn.disabled = false;
+          if (!ok || !body.ok) { errorEl.textContent = body.error || 'Failed to add requirement.'; return; }
+          const newReq = { id: body.id, title: body.title, priority: body.priority, status: body.status, outOfScope: false, comment: '', description: body.description, testCases: [] };
+          currentDoc.requirements.push(newReq);
+
+          const listEl = document.getElementById('req-list');
+          const emptyEl = listEl.querySelector(':scope > .empty');
+          if (emptyEl) emptyEl.remove();
+          const wrap = document.createElement('div');
+          wrap.innerHTML = renderReq(newReq);
+          const reqEl = wrap.firstElementChild;
+          listEl.appendChild(reqEl);
+          wireTicketInputs(reqEl);
+          wireTCAdd(reqEl);
+          wireScopeToggles(reqEl);
+          wireCommentBlocks(reqEl);
+          wireReqEdit(reqEl);
+          wireTcEdit(reqEl);
+          applyMode(reqEl);
+
+          const statsWrap = document.getElementById('stats-wrap');
+          if (statsWrap) statsWrap.innerHTML = renderStats(currentDoc);
+          closeForm();
+        })
+        .catch(() => {
+          submitBtn.disabled = false;
+          errorEl.textContent = 'Could not reach the write-server. Run: python3 serve.py';
+        });
+    });
+  }
+
+  function refreshOQSection() {
+    const list = document.getElementById('oq-list');
+    if (list) {
+      list.innerHTML = currentDoc.openQuestions.length
+        ? currentDoc.openQuestions.map(renderOQ).join('')
+        : '<div class="empty">No open questions.</div>';
+      wireOQControls(list);
+      wireScopeToggles(list);
+      wireCommentBlocks(list);
+      applyMode(list);
+    }
+    const statsWrap = document.getElementById('stats-wrap');
+    if (statsWrap) statsWrap.innerHTML = renderStats(currentDoc);
+  }
+
+  function refreshOQRow(oqId) {
+    const q = currentDoc.openQuestions.find(x => x.id === oqId);
+    const oldEl = document.querySelector('.oq-row[data-oq="' + oqId + '"]');
+    if (!q || !oldEl) return;
+    const drafts = captureDrafts(oldEl);
+    const wrap = document.createElement('div');
+    wrap.innerHTML = renderOQ(q);
+    const newEl = wrap.firstElementChild;
+    oldEl.replaceWith(newEl);
+    wireOQControls(newEl);
+    wireScopeToggles(newEl);
+    wireCommentBlocks(newEl);
+    applyMode(newEl);
+    restoreDrafts(newEl, drafts);
+    const statsWrap = document.getElementById('stats-wrap');
+    if (statsWrap) statsWrap.innerHTML = renderStats(currentDoc);
+  }
+
+  // ---------------- out-of-scope marking ----------------
+  // `savedForm`: the form that was just saved; it takes the fresh values, every other form keeps its draft.
+  function replaceReqCard(reqId, savedForm) {
+    const req = currentDoc.requirements.find(r => r.id === reqId);
+    const oldEl = document.getElementById(reqId);
+    if (!req || !oldEl) return;
+    const wasOpen = oldEl.open;
+    const drafts = captureDrafts(oldEl, savedForm);
+    const wrap = document.createElement('div');
+    wrap.innerHTML = renderReq(req);
+    const newEl = wrap.firstElementChild;
+    oldEl.replaceWith(newEl);
+    newEl.open = wasOpen;
+    wireTicketInputs(newEl);
+    wireTCAdd(newEl);
+    wireScopeToggles(newEl);
+    wireCommentBlocks(newEl);
+    wireReqEdit(newEl);
+    wireTcEdit(newEl);
+    applyMode(newEl);
+    restoreDrafts(newEl, drafts);
+  }
+
+  function applyScopeChange(type, id, outOfScope) {
+    if (!currentDoc) return;
+    if (type === 'req') {
+      const req = currentDoc.requirements.find(r => r.id === id);
+      if (!req) return;
+      req.outOfScope = outOfScope;
+      replaceReqCard(id);
+    } else if (type === 'tc') {
+      const req = currentDoc.requirements.find(r => r.testCases.some(t => t.id === id));
+      if (!req) return;
+      const tc = req.testCases.find(t => t.id === id);
+      tc.outOfScope = outOfScope;
+      replaceReqCard(req.id);
+    } else if (type === 'oq') {
+      const q = currentDoc.openQuestions.find(x => x.id === id);
+      if (!q) return;
+      q.outOfScope = outOfScope;
+      refreshOQRow(id);
+    }
+    const statsWrap = document.getElementById('stats-wrap');
+    if (statsWrap) statsWrap.innerHTML = renderStats(currentDoc);
+  }
+
+  function wireScopeToggles(container) {
+    container.querySelectorAll('.scope-toggle').forEach(btn => {
+      if (btn.dataset.wired) return;
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', () => {
+        const type = btn.dataset.scopeType;
+        const id = btn.dataset.scopeId;
+        const outOfScope = btn.dataset.scopeNext === 'out';
+        const prevLabel = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        fetch('/save-scope', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, id, outOfScope })
+        })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(() => applyScopeChange(type, id, outOfScope))
+          .catch(() => {
+            btn.disabled = false;
+            btn.textContent = prevLabel;
+            alert('Could not reach the write-server. Run: python3 serve.py');
+          });
+      });
+    });
+  }
+
+  // ---------------- comments ----------------
+  function applyCommentToDoc(type, id, comment) {
+    if (!currentDoc) return;
+    if (type === 'req') {
+      const req = currentDoc.requirements.find(r => r.id === id);
+      if (req) req.comment = comment;
+    } else if (type === 'tc') {
+      const req = currentDoc.requirements.find(r => r.testCases.some(t => t.id === id));
+      const tc = req && req.testCases.find(t => t.id === id);
+      if (tc) tc.comment = comment;
+    } else if (type === 'oq') {
+      const q = currentDoc.openQuestions.find(x => x.id === id);
+      if (q) q.comment = comment;
+    }
+  }
+
+  function wireCommentBlocks(container) {
+    container.querySelectorAll('.comment-block').forEach(block => {
+      if (block.dataset.wired) return;
+      block.dataset.wired = '1';
+      const type = block.dataset.commentType;
+      const id = block.dataset.commentId;
+      const toggleBtn = block.querySelector('.comment-toggle');
+      const viewEl = block.querySelector('.comment-view');
+      const textEl = block.querySelector('.comment-text');
+      const form = block.querySelector('.comment-form');
+      const textarea = block.querySelector('.comment-textarea');
+      const saveBtn = block.querySelector('.comment-save');
+      const cancelBtn = block.querySelector('.comment-cancel');
+      const errorEl = block.querySelector('.comment-error');
+
+      const setCollapsed = () => {
+        block.dataset.state = 'collapsed';
+        toggleBtn.textContent = block.dataset.has === '1' ? 'View comment' : '+ Add comment';
+        toggleBtn.hidden = false;
+        viewEl.hidden = true;
+        form.hidden = true;
+      };
+      const setViewing = () => {
+        block.dataset.state = 'viewing';
+        toggleBtn.hidden = true;
+        viewEl.hidden = false;
+        form.hidden = true;
+      };
+      const setEditing = (focus = true) => {
+        block.dataset.state = 'editing';
+        toggleBtn.hidden = true;
+        viewEl.hidden = true;
+        form.hidden = false;
+        if (focus) textarea.focus();
+      };
+
+      // Read-only: comments are only viewed. Edit: every comment is open for editing.
+      block._setMode = edit => {
+        errorEl.textContent = '';
+        if (edit) setEditing(false); else setCollapsed();
+      };
+
+      toggleBtn.addEventListener('click', setViewing);
+      cancelBtn.addEventListener('click', () => {
+        errorEl.textContent = '';
+        textarea.value = textarea.defaultValue;
+      });
+
+      const persist = (value) => {
+        errorEl.textContent = '';
+        saveBtn.disabled = true;
+        fetch('/save-comment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, id, comment: value })
+        })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(body => {
+            saveBtn.disabled = false;
+            applyCommentToDoc(type, id, body.comment);
+            block.dataset.has = body.comment ? '1' : '0';
+            textEl.innerHTML = mdInline(body.comment);
+            textarea.defaultValue = body.comment;
+            textarea.value = body.comment;
+          })
+          .catch(() => {
+            saveBtn.disabled = false;
+            errorEl.textContent = 'Could not reach the write-server. Run: python3 serve.py';
+          });
+      };
+
+      saveBtn.addEventListener('click', () => persist(textarea.value.trim()));
+    });
+  }
+
+  // ---------------- editing title/description ----------------
+  function wireReqEdit(container) {
+    container.querySelectorAll('.req-edit-form').forEach(form => {
+      if (form.dataset.wired) return;
+      form.dataset.wired = '1';
+      const reqId = form.closest('.req').id;
+      const titleEl = form.querySelector('.req-edit-title');
+      const priorityEl = form.querySelector('.req-edit-priority');
+      const statusEl = form.querySelector('.req-edit-status');
+      const descEl = form.querySelector('.req-edit-desc');
+      const saveBtn = form.querySelector('.req-edit-save');
+      const cancelBtn = form.querySelector('.req-edit-cancel');
+      const errorEl = form.querySelector('.req-edit-error');
+
+      cancelBtn.addEventListener('click', () => { resetFields(form); errorEl.textContent = ''; });
+
+      saveBtn.addEventListener('click', () => {
+        const title = titleEl.value.trim();
+        if (!title) { errorEl.textContent = 'Requirement title is required.'; return; }
+        errorEl.textContent = '';
+        saveBtn.disabled = true;
+        fetch('/edit-requirement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: reqId, title,
+            priority: priorityEl.value,
+            status: statusEl.value.trim(),
+            description: descEl.value.trim()
+          })
+        })
+          .then(r => r.json().then(body => ({ ok: r.ok, body })))
+          .then(({ ok, body }) => {
+            saveBtn.disabled = false;
+            if (!ok || !body.ok) { errorEl.textContent = (body && body.error) || 'Failed to save.'; return; }
+            const req = currentDoc.requirements.find(r => r.id === reqId);
+            if (req) {
+              req.title = body.title; req.priority = body.priority;
+              req.status = body.status; req.description = body.description;
+            }
+            replaceReqCard(reqId, form);
+          })
+          .catch(() => {
+            saveBtn.disabled = false;
+            errorEl.textContent = 'Could not reach the write-server. Run: python3 serve.py';
+          });
+      });
+    });
+  }
+
+  function wireTcEdit(container) {
+    container.querySelectorAll('.tc-edit-form').forEach(form => {
+      if (form.dataset.wired) return;
+      form.dataset.wired = '1';
+      const row = form.closest('.tc-row');
+      const tcId = row.dataset.tc;
+      const reqId = row.dataset.req;
+      const titleEl = form.querySelector('.tc-edit-title');
+      const descEl = form.querySelector('.tc-edit-desc');
+      const saveBtn = form.querySelector('.tc-edit-save');
+      const cancelBtn = form.querySelector('.tc-edit-cancel');
+      const errorEl = form.querySelector('.tc-edit-error');
+
+      cancelBtn.addEventListener('click', () => { resetFields(form); errorEl.textContent = ''; });
+
+      saveBtn.addEventListener('click', () => {
+        const title = titleEl.value.trim();
+        if (!title) { errorEl.textContent = 'Test case title is required.'; return; }
+        errorEl.textContent = '';
+        saveBtn.disabled = true;
+        fetch('/edit-testcase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: tcId, title, description: descEl.value.trim() })
+        })
+          .then(r => r.json().then(body => ({ ok: r.ok, body })))
+          .then(({ ok, body }) => {
+            saveBtn.disabled = false;
+            if (!ok || !body.ok) { errorEl.textContent = (body && body.error) || 'Failed to save.'; return; }
+            const req = currentDoc.requirements.find(r => r.id === reqId);
+            const tc = req && req.testCases.find(t => t.id === tcId);
+            if (tc) { tc.title = body.title; tc.description = body.description; }
+            replaceReqCard(reqId, form);
+          })
+          .catch(() => {
+            saveBtn.disabled = false;
+            errorEl.textContent = 'Could not reach the write-server. Run: python3 serve.py';
+          });
+      });
+    });
+  }
+
+  function wireOQControls(container) {
+    container.querySelectorAll('.oq-link').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = document.getElementById(btn.dataset.jump);
+        if (!target) return;
+        target.open = true;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.style.borderColor = 'var(--warning)';
+        setTimeout(() => { target.style.borderColor = ''; }, 1400);
+      });
+    });
+
+    container.querySelectorAll('.oq-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const oqId = btn.dataset.oq;
+        const newStatus = btn.dataset.status;
+        const statusEl = btn.parentElement.querySelector('.oq-toggle-status');
+        btn.disabled = true;
+        if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.className = 'oq-toggle-status'; statusEl.removeAttribute('title'); }
+        fetch('/save-oq-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: oqId, status: newStatus })
+        })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(() => {
+            const q = currentDoc.openQuestions.find(x => x.id === oqId);
+            if (q) q.status = newStatus;
+            refreshOQRow(oqId);
+          })
+          .catch(() => {
+            btn.disabled = false;
+            if (statusEl) {
+              statusEl.textContent = 'Save failed';
+              statusEl.title = 'Could not reach the write-server. Run: python3 serve.py';
+              statusEl.className = 'oq-toggle-status error';
+            }
+          });
+      });
+    });
+  }
+
+  function wireOQAddForm() {
+    const toggleBtn = document.getElementById('oq-add-toggle');
+    const form = document.getElementById('oq-add-form');
+    const textEl = document.getElementById('oq-add-text');
+    const relatedEl = document.getElementById('oq-add-related');
+    const submitBtn = document.getElementById('oq-add-submit');
+    const cancelBtn = document.getElementById('oq-add-cancel');
+    const errorEl = document.getElementById('oq-add-error');
+    if (!toggleBtn) return;
+
+    const closeForm = () => {
+      form.hidden = true;
+      textEl.value = '';
+      relatedEl.value = '';
+      errorEl.textContent = '';
+    };
+
+    toggleBtn.addEventListener('click', () => {
+      form.hidden = !form.hidden;
+      if (!form.hidden) textEl.focus();
+    });
+    cancelBtn.addEventListener('click', closeForm);
+
+    submitBtn.addEventListener('click', () => {
+      const text = textEl.value.trim();
+      if (!text) { errorEl.textContent = 'Question text is required.'; return; }
+      const related = relatedEl.value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+      errorEl.textContent = '';
+      submitBtn.disabled = true;
+      fetch('/add-oq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, related })
+      })
+        .then(r => r.json().then(body => ({ ok: r.ok, body })))
+        .then(({ ok, body }) => {
+          submitBtn.disabled = false;
+          if (!ok || !body.ok) { errorEl.textContent = body.error || 'Failed to add question.'; return; }
+          currentDoc.openQuestions.push({ id: body.id, related: body.related, text: body.text, status: body.status, outOfScope: false, comment: '' });
+          refreshOQSection();
+          closeForm();
+        })
+        .catch(() => {
+          submitBtn.disabled = false;
+          errorEl.textContent = 'Could not reach the write-server. Run: python3 serve.py';
+        });
+    });
+  }
+
+  function render(doc) {
+    currentDoc = doc;
+    document.getElementById('doc-title').textContent = doc.title || 'Requirement Traceability Dashboard';
+    document.title = (doc.title || 'RTM Dashboard');
+
+    const metaEl = document.getElementById('doc-meta');
+    metaEl.innerHTML = Object.entries(doc.meta).map(([k, v]) =>
+      `<span class="meta-chip">${escapeHtml(k)}: <b>${escapeHtml(v)}</b></span>`
+    ).join('');
+
+    const app = document.getElementById('app');
+    app.innerHTML = `
+      <div id="stats-wrap">${renderStats(doc)}</div>
+      <div class="columns">
+        <div class="col-main">
+          <div class="section-title">Requirements</div>
+          <div id="req-list">
+            ${doc.requirements.length ? doc.requirements.map(renderReq).join('') : '<div class="empty">No requirements found in requirement.md.</div>'}
+          </div>
+          <div class="inline-add">
+            <button class="btn" id="req-add-toggle" type="button">+ Add requirement</button>
+            <div class="inline-add-form" id="req-add-form" hidden>
+              <input type="text" id="req-add-title" placeholder="Requirement title">
+              <div class="inline-add-row">
+                <select id="req-add-priority">
+                  <option value="">Priority…</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+                <input type="text" id="req-add-status" placeholder="Status (optional)">
+              </div>
+              <textarea id="req-add-desc" rows="3" placeholder="Description (optional)"></textarea>
+              <div class="inline-add-actions">
+                <button class="btn" id="req-add-submit" type="button">Add requirement</button>
+                <button class="btn" id="req-add-cancel" type="button">Cancel</button>
+              </div>
+              <div class="inline-add-error" id="req-add-error"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-side">
+          <div class="section-title">Open Questions</div>
+          <div id="oq-list">
+            ${doc.openQuestions.length ? doc.openQuestions.map(renderOQ).join('') : '<div class="empty">No open questions.</div>'}
+          </div>
+          <div class="inline-add">
+            <button class="btn" id="oq-add-toggle" type="button">+ Add open question</button>
+            <div class="inline-add-form" id="oq-add-form" hidden>
+              <textarea id="oq-add-text" rows="2" placeholder="What's the open question?"></textarea>
+              <input type="text" id="oq-add-related" placeholder="Related requirements, e.g. REQ-001, REQ-002 (optional)">
+              <div class="inline-add-actions">
+                <button class="btn" id="oq-add-submit" type="button">Add question</button>
+                <button class="btn" id="oq-add-cancel" type="button">Cancel</button>
+              </div>
+              <div class="inline-add-error" id="oq-add-error"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    wireTicketInputs(app);
+    wireTCAdd(app);
+    wireScopeToggles(app);
+    wireCommentBlocks(app);
+    wireReqEdit(app);
+    wireTcEdit(app);
+    wireOQControls(document.getElementById('oq-list'));
+    wireOQAddForm();
+    wireReqAddForm();
+    applyMode(app);
+
+    document.getElementById('expand-all').onclick = () => app.querySelectorAll('details').forEach(d => d.open = true);
+    document.getElementById('collapse-all').onclick = () => app.querySelectorAll('details').forEach(d => d.open = false);
+  }
+
+  function renderError(err) {
+    document.getElementById('app').innerHTML = `
+      <div class="error-panel">
+        <strong>Couldn't load requirement.md</strong> (${escapeHtml(err.message || String(err))}).
+        <p>Browsers block <code style="display:inline;padding:1px 5px;">fetch()</code> of local files opened via <code style="display:inline;padding:1px 5px;">file://</code>. Serve this folder over HTTP instead, e.g.:</p>
+        <code>cd ${escapeHtml(location.pathname.replace(/\/[^/]*$/, '') || '.')}
+python3 serve.py 8080</code>
+        <p>then open <code style="display:inline;padding:1px 5px;">http://localhost:8080/RTMdashboard.html</code>. (Ticket edits only save with <code style="display:inline;padding:1px 5px;">serve.py</code> running — plain <code style="display:inline;padding:1px 5px;">python3 -m http.server</code> can view but not save.)</p>
+      </div>`;
+  }
+
+  document.getElementById('mode-read').addEventListener('click', () => setViewMode('read'));
+  document.getElementById('mode-edit').addEventListener('click', () => setViewMode('edit'));
+
+  // theme toggle
+  const root = document.documentElement;
+  const saved = localStorage.getItem('rtm-theme');
+  if (saved) root.setAttribute('data-theme', saved);
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const current = root.getAttribute('data-theme') ||
+      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = current === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('rtm-theme', next);
+  });
+
+  fetch('requirement.md', { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(text => render(parseRTM(text)))
+    .catch(renderError);
+})();
+</script>
+</body>
+</html>

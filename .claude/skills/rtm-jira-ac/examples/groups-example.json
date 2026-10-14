@@ -1,0 +1,33 @@
+[
+  {
+    "title": "Prices follow the customer's locale",
+    "tcs": ["TC-001", "TC-002", "TC-003"],
+    "ticks": ["Unit", "Integration"],
+    "why": "Unit covers the currency lookup and the USD fallback; integration shows the rendered prices for a supported locale, an unsupported one and an unavailable rate service."
+  },
+  {
+    "title": "The customer can override the displayed currency",
+    "tcs": ["TC-004", "TC-005", "TC-006"],
+    "overrides": {
+      "TC-006": {
+        "given": "a customer who switched the displayed currency to GBP",
+        "when": "the order is submitted",
+        "then": "the payment gateway receives the amount in USD."
+      }
+    },
+    "ticks": ["Unit", "Integration"],
+    "why": "Unit covers the override state; integration shows it surviving the checkout steps and the gateway amount staying in USD."
+  },
+  {
+    "title": "The conversion disclaimer is shown",
+    "tcs": ["TC-007", "TC-008"],
+    "ticks": ["Integration"],
+    "why": "Integration shows the disclaimer on the confirmation page and in the email receipt; the legal copy itself is a manual review."
+  },
+  {
+    "title": "Conversions are audited",
+    "tcs": ["TC-009", "TC-010"],
+    "ticks": ["Unit", "Integration"],
+    "why": "Unit covers the audit event payload; integration shows an event emitted on page load and again on a manual override."
+  }
+]
