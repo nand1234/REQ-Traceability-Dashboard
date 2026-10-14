@@ -126,3 +126,6 @@ shows each part on its own line.
   file can overwrite each other.
 - No auth. Use `serve.py` on `localhost` only.
 - The parser follows the format above; it is not a general markdown parser.
+
+- sample dashboard
+![alt text](image.png)
